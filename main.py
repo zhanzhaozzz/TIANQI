@@ -159,7 +159,7 @@ def get_ciba():
     return note_ch, note_en
 
 
-def send_message(to_user, access_token, region_name, weather, temp, wind_dir,love_days, note_ch, note_en, max_temp, min_temp,
+def send_message(to_user, access_token, region_name, weather, temp, wind_dir,love_date, note_ch, note_en, max_temp, min_temp,
                  sunrise, sunset, category, pm2p5, proposal, chp):
     url = "https://api.weixin.qq.com/cgi-bin/message/template/send?access_token={}".format(access_token)
     week_list = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"]
@@ -308,6 +308,6 @@ if __name__ == "__main__":
     chp = get_tianhang()
     # 公众号推送消息
     for user in users:
-        send_message(user, accessToken, region, weather, temp, wind_dir, love_days,note_ch, note_en, max_temp, min_temp, sunrise,
+        send_message(user, accessToken, region, weather, temp, wind_dir,love_date, note_ch, note_en, max_temp, min_temp, sunrise,
                      sunset, category, pm2p5, proposal, chp)
     os.system("pause")
