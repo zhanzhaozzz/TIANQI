@@ -1,74 +1,10 @@
 import random
 from time import localtime
-# from time import tzset
 from requests import get, post
 from datetime import datetime, date
 from zhdate import ZhDate
 import sys
 import os
-
-def yq(region, config_data):
-    key = config_data["weather_key"]
-    url = "https://geoapi.qweather.com/v2/city/lookup?key={}&location={}".format(key, region)
-    r = get(url).json()
-    if r["code"] == "200":
-        city = r["location"][0]["adm2"]
-        if region in ["台北", "高雄", "台中", "台湾"]:
-            city = "台湾"
-    else:
-        city = ""
-    headers = {
-        'user-agent': 'Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.0.0 Mobile Safari/537.36',
-    }
-
-    response = get('https://covid.myquark.cn/quark/covid/data?city={}'.format(city), headers=headers).json()
-    if city in ["北京", "上海", "天津", "重庆", "香港", "澳门", "台湾"]:
-        city_data = response["provinceData"]
-    else:
-        city_data = response["cityData"]
-    try:
-        sure_new_loc = "昨日新增：{}".format(city_data["sure_new_loc"])
-        sure_new_hid = "昨日无症状：{}".format(city_data["sure_new_hid"])
-        present = "现有确诊：{}".format(city_data["present"])
-        danger = "中/高风险区：{}/{}".format(city_data["danger"]["1"], city_data["danger"]["2"])
-        statistics_time = response["time"]
-        yq_data = "{}疫情数据\n{}\n{}\n{}\n{}\n{}".format(city, sure_new_loc, sure_new_hid, present, danger, statistics_time)
-    except TypeError:
-        yq_data = ""
-    return yq_data
-
-
-def get_commemoration_day(today, commemoration_day):
-    # 获取纪念日的日期格式
-    commemoration_year = int(commemoration_day.split("-")[0])
-    commemoration_month = int(commemoration_day.split("-")[1])
-    commemoration_day = int(commemoration_day.split("-")[2])
-    commemoration_date = date(commemoration_year, commemoration_month, commemoration_day)
-    # 获取纪念日的日期差
-    commemoration_days = str(today.__sub__(commemoration_date)).split(" ")[0]
-    return commemoration_days
-
-
-def get_commemoration_data(today, config_data):
-    # 获取所有纪念日数据
-    commemoration_days = {}
-    for k, v in config_data.items():
-        if k[0:13] == "commemoration":
-            commemoration_days[k] = get_commemoration_day(today, v)
-    return commemoration_days
-
-
-def color(name, config):
-    # 获取字体颜色，如没设置返回随机颜色
-    try:
-        if config[name] == "":
-            color = get_color()
-        else:
-            color = config[name]
-        return color
-    except KeyError:
-        color = get_color()
-        return color
 
 
 def get_color():
@@ -78,7 +14,7 @@ def get_color():
     return random.choice(color_list)
 
 
-def get_access_token(config):
+def get_access_token():
     # appId
     app_id = config["app_id"]
     # appSecret
@@ -95,7 +31,7 @@ def get_access_token(config):
     return access_token
 
 
-def get_weather(region, config):
+def get_weather(region):
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
                       'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.0.0 Safari/537.36'
@@ -153,7 +89,7 @@ def get_weather(region, config):
     return weather, temp, max_temp, min_temp, wind_dir, sunrise, sunset, category, pm2p5, proposal
 
 
-def get_tianhang(config):
+def get_tianhang():
     try:
         key = config["tian_api"]
         url = "http://api.tianapi.com/caihongpi/index?key={}".format(key)
@@ -224,19 +160,21 @@ def get_ciba():
 
 
 def send_message(to_user, access_token, region_name, weather, temp, wind_dir, note_ch, note_en, max_temp, min_temp,
-                 sunrise, sunset, category, pm2p5, proposal, chp, config, yq):
+                 sunrise, sunset, category, pm2p5, proposal, chp):
     url = "https://api.weixin.qq.com/cgi-bin/message/template/send?access_token={}".format(access_token)
     week_list = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"]
-    os.environ['TZ'] = 'Asia/Shanghai'
-    # tzset()
     year = localtime().tm_year
     month = localtime().tm_mon
     day = localtime().tm_mday
     today = datetime.date(datetime(year=year, month=month, day=day))
     week = week_list[today.isoweekday() % 7]
-    # date1 = datetime.now()
-    # 获取所有纪念日数据
-    commemoration_data = get_commemoration_data(today, config)
+    # 获取在一起的日子的日期格式
+    love_year = int(config["love_date"].split("-")[0])
+    love_month = int(config["love_date"].split("-")[1])
+    love_day = int(config["love_date"].split("-")[2])
+    love_date = date(love_year, love_month, love_day)
+    # 获取在一起的日期差
+    love_days = str(today.__sub__(love_date)).split(" ")[0]
     # 获取所有生日数据
     birthdays = {}
     for k, v in config.items():
@@ -250,83 +188,80 @@ def send_message(to_user, access_token, region_name, weather, temp, wind_dir, no
         "data": {
             "date": {
                 "value": "{} {}".format(today, week),
-                "color": color("color_date", config)
+                "color": get_color()
             },
             "region": {
                 "value": region_name,
-                "color": color("color_region", config)
+                "color": get_color()
             },
             "weather": {
                 "value": weather,
-                "color": color("color_weather", config)
+                "color": get_color()
             },
             "temp": {
                 "value": temp,
-                "color": color("color_temp", config)
+                "color": get_color()
             },
             "wind_dir": {
                 "value": wind_dir,
-                "color": color("color_wind", config)
+                "color": get_color()
+            },
+            "love_day": {
+                "value": love_days,
+                "color": get_color()
             },
             "note_en": {
                 "value": note_en,
-                "color": color("color_note_en", config)
+                "color": get_color()
             },
             "note_ch": {
                 "value": note_ch,
-                "color": color("color_note_zh", config)
+                "color": get_color()
             },
             "max_temp": {
                 "value": max_temp,
-                "color": color("color_max_temp", config)
+                "color": get_color()
             },
             "min_temp": {
                 "value": min_temp,
-                "color": color("color_min_temp", config)
+                "color": get_color()
             },
             "sunrise": {
                 "value": sunrise,
-                "color": color("color_sunrise", config)
+                "color": get_color()
             },
             "sunset": {
                 "value": sunset,
-                "color": color("color_sunset", config)
+                "color": get_color()
             },
             "category": {
                 "value": category,
-                "color": color("color_category", config)
+                "color": get_color()
             },
             "pm2p5": {
                 "value": pm2p5,
-                "color": color("color_pm2p5", config)
+                "color": get_color()
             },
             "proposal": {
                 "value": proposal,
-                "color": color("color_proposal", config)
+                "color": get_color()
             },
             "chp": {
                 "value": chp,
-                "color":  color("color_chp", config)
-            },
-            "yq": {
-                "value": yq,
-                "color": color("color_yq", config)
+                "color": get_color()
             },
 
         }
     }
-    for key, value in commemoration_data.items():
-        # 将纪念日数据插入data
-        data["data"][key] = {"value": value, "color": color("color_{}".format(key), config)}
     for key, value in birthdays.items():
         # 获取距离下次生日的时间
         birth_day = get_birthday(value["birthday"], year, today)
         if birth_day == 0:
             birthday_data = "今天{}生日哦，祝{}生日快乐！".format(value["name"], value["name"])
         else:
-            birthday_data = "🎁距离{}的生日还有{}天".format(value["name"], birth_day)
+            birthday_data = "距离{}的生日还有{}天".format(value["name"], birth_day)
         # 将生日数据插入data
-        data["data"][key] = {"value": birthday_data, "color": color("color_{}".format(key), config)}
+        data["data"][key] = {"value": birthday_data, "color": get_color()}
     headers = {
         'Content-Type': 'application/json',
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
@@ -335,27 +270,17 @@ def send_message(to_user, access_token, region_name, weather, temp, wind_dir, no
     response = post(url, headers=headers, json=data).json()
     if response["errcode"] == 40037:
         print("推送消息失败，请检查模板id是否正确")
-        os.system("pause")
-        sys.exit(1)
     elif response["errcode"] == 40036:
         print("推送消息失败，请检查模板id是否为空")
-        os.system("pause")
-        sys.exit(1)
     elif response["errcode"] == 40003:
         print("推送消息失败，请检查微信号是否正确")
-        os.system("pause")
-        sys.exit(1)
-    elif response["errcode"] == 43004:
-        print("推送消息失败，用户取消关注公众号")
-        os.system("pause")
-        sys.exit(1)
     elif response["errcode"] == 0:
         print("推送消息成功")
     else:
         print(response)
 
 
-def handler(event, context):
+if __name__ == "__main__":
     try:
         with open("config.txt", encoding="utf-8") as f:
             config = eval(f.read())
@@ -369,26 +294,20 @@ def handler(event, context):
         sys.exit(1)
 
     # 获取accessToken
-    accessToken = get_access_token(config)
+    accessToken = get_access_token()
     # 接收的用户
     users = config["user"]
     # 传入地区获取天气信息
     region = config["region"]
-    weather, temp, max_temp, min_temp, wind_dir, sunrise, sunset, category, pm2p5, proposal = get_weather(region, config)
+    weather, temp, max_temp, min_temp, wind_dir, sunrise, sunset, category, pm2p5, proposal = get_weather(region)
     note_ch = config["note_ch"]
     note_en = config["note_en"]
     if note_ch == "" and note_en == "":
         # 获取词霸每日金句
         note_ch, note_en = get_ciba()
-    chp = get_tianhang(config)
-    # 获取疫情数据
-    yq_data = yq(region, config)
+    chp = get_tianhang()
     # 公众号推送消息
     for user in users:
         send_message(user, accessToken, region, weather, temp, wind_dir, note_ch, note_en, max_temp, min_temp, sunrise,
-                     sunset, category, pm2p5, proposal, chp, config, yq_data)
+                     sunset, category, pm2p5, proposal, chp)
     os.system("pause")
-
-
-if __name__ == "__main__":
-    handler(event="", context="")
