@@ -75,7 +75,7 @@ def get_weather(region):
         # 空气质量
         category = response["now"]["category"]
         # pm2.5
-        pm2p5 = response["now"]["pm2p5"]
+       
     else:
         # 国外城市获取不到数据
         category = ""
@@ -86,7 +86,7 @@ def get_weather(region):
     proposal = ""
     if response["code"] == "200":
         proposal += response["daily"][0]["text"]
-    return weather, temp, max_temp, min_temp, wind_dir, sunrise, sunset, category, pm2p5, proposal
+    return weather, temp, max_temp, min_temp, wind_dir, sunrise, sunset, category, proposal
 
 
 def get_tianhang():
@@ -156,10 +156,10 @@ def get_ciba():
     r = get(url, headers=headers)
     note_en = r.json()["content"]
     note_ch = r.json()["note"]
-    return note_ch, note_en
+    return note_ch
 
 
-def send_message(to_user, access_token, region_name, weather, temp, wind_dir, note_ch, note_en, max_temp, min_temp,
+def send_message(to_user, access_token, region_name, weather, temp, wind_dir, note_ch, max_temp, min_temp,
                  sunrise, sunset, category, proposal, chp):
     url = "https://api.weixin.qq.com/cgi-bin/message/template/send?access_token={}".format(access_token)
     week_list = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"]
@@ -210,10 +210,6 @@ def send_message(to_user, access_token, region_name, weather, temp, wind_dir, no
                 "value": love_days,
                 "color": get_color()
             },
-            "note_en": {
-                "value": note_en,
-                "color": get_color()
-            },
             "note_ch": {
                 "value": note_ch,
                 "color": get_color()
@@ -236,10 +232,6 @@ def send_message(to_user, access_token, region_name, weather, temp, wind_dir, no
             },
             "category": {
                 "value": category,
-                "color": get_color()
-            },
-            "pm2p5": {
-                "value": pm2p5,
                 "color": get_color()
             },
             "proposal": {
@@ -301,10 +293,9 @@ if __name__ == "__main__":
     region = config["region"]
     weather, temp, max_temp, min_temp, wind_dir, sunrise, sunset, category,love_days, proposal = get_weather(region)
     note_ch = config["note_ch"]
-    note_en = config["note_en"]
     if note_ch == "" and note_en == "":
         # 获取词霸每日金句
-        note_ch, note_en = get_ciba()
+        note_ch = get_ciba()
     chp = get_tianhang()
     # 公众号推送消息
     for user in users:
